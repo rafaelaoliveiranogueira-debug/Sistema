@@ -9,7 +9,7 @@
   <!-- jsPDF e qrcode.js para Geração de PDFs e QRs -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <!-- Instrypt / jsQR para Leitura de Câmera -->
+  <!-- jsQR para Leitura de Câmera -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans antialiased">
@@ -18,7 +18,7 @@
   <div id="auth-container" class="min-h-screen flex items-center justify-center p-4 bg-gray-100">
     <div class="bg-white p-6 rounded-xl shadow-md w-full max-w-sm">
       <h2 class="text-xl font-bold text-center text-blue-900 mb-2">Escola Estadual São Tomaz de Aquino</h2>
-      <p class="text-xs text-center text-gray-500 mb-4">Sistema de Correção por IA e QR Code</p>
+      <p class="text-xs text-center text-gray-500 mb-4">Sistema de Correção por QR Code</p>
       <div class="mb-3">
         <label class="block text-xs font-medium text-gray-700 mb-1">E-mail</label>
         <input type="email" id="login-email" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="professor@escola.com">
@@ -224,12 +224,13 @@
     </main>
   </div>
 
-  <!-- SCRIPT DO SISTEMA -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js";
-    import { getFirestore, collection, getDocs, addDoc, doc, updateid, deleteDoc } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-firestore.js";
+  <!-- Firebase SDK Tradicional (Compatível com qualquer navegador mobile) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
+  <!-- SCRIPT DO SISTEMA -->
+  <script>
     const firebaseConfig = {
       apiKey: "AIzaSyCReb5DPZZUs9WQXfTyiDYAW5FuWvdIwos",
       authDomain: "sistemadecorrecao-99336.firebaseapp.com",
@@ -239,21 +240,20 @@
       appId: "1:368037327036:web:107e098372442a8e9060b9"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
     window.turmasSalvas = [];
     window.alunosSalvos = [];
     window.provasSalvas = [];
     window.resultadosSalvos = [];
 
-    // Estado da Câmera e Leitura
     let videoStream = null;
-    let modoLeitura = 'qrcode'; // 'qrcode' ou 'respostas'
+    let modoLeitura = 'qrcode';
     let alunoDetectadoTemp = null;
 
-    onAuthStateChanged(auth, (user) => {
+    auth.onAuthStateChanged((user) => {
       if (user) {
         document.getElementById('auth-container').classList.add('hidden');
         document.getElementById('app-container').classList.remove('hidden');
@@ -270,16 +270,23 @@
       const erroEl = document.getElementById('auth-erro');
       erroEl.classList.add('hidden');
 
+      if (!email || !senha) {
+        erroEl.innerText = "Digite o e-mail e a senha.";
+        erroEl.classList.remove('hidden');
+        return;
+      }
+
       try {
-        await signInWithEmailAndPassword(auth, email, senha);
+        await auth.signInWithEmailAndPassword(email, senha);
       } catch (error) {
+        console.error(error);
         erroEl.innerText = "E-mail ou senha incorretos.";
         erroEl.classList.remove('hidden');
       }
     };
 
     window.fazerLogout = async function() {
-      await signOut(auth);
+      await auth.signOut();
       pararCamera();
     };
 
@@ -297,24 +304,22 @@
       if(aba === 'relatorios') atualizarSelectsRelatorios();
     };
 
-    // --- CARREGAR DADOS ---
     async function carregarDadosDoBanco() {
       try {
-        const tSnap = await getDocs(collection(db, "turmas"));
+        const tSnap = await db.collection("turmas").get();
         window.turmasSalvas = [];
         tSnap.forEach(d => window.turmasSalvas.push({id: d.id, ...d.data()}));
-        // Ordem alfabética ou numérica de turmas
         window.turmasSalvas.sort((a,b) => a.nome.localeCompare(b.nome, 'pt-BR', {numeric: true}));
 
-        const aSnap = await getDocs(collection(db, "alunos"));
+        const aSnap = await db.collection("alunos").get();
         window.alunosSalvos = [];
         aSnap.forEach(d => window.alunosSalvos.push({id: d.id, ...d.data()}));
 
-        const pSnap = await getDocs(collection(db, "provas"));
+        const pSnap = await db.collection("provas").get();
         window.provasSalvas = [];
         pSnap.forEach(d => window.provasSalvas.push({id: d.id, ...d.data()}));
 
-        const rSnap = await getDocs(collection(db, "resultados"));
+        const rSnap = await db.collection("resultados").get();
         window.resultadosSalvos = [];
         rSnap.forEach(d => window.resultadosSalvos.push({id: d.id, ...d.data()}));
 
@@ -328,12 +333,12 @@
       const relTurma = document.getElementById('rel-select-turma');
 
       selAluno.innerHTML = '<option value="">Selecione a Turma</option>';
-      boxCheck.innerHTML = '';
+      if(boxCheck) boxCheck.innerHTML = '';
       if(relTurma) relTurma.innerHTML = '<option value="">Selecione a Turma</option>';
 
       window.turmasSalvas.forEach(t => {
         selAluno.innerHTML += `<option value="${t.nome}">${t.nome}</option>`;
-        boxCheck.innerHTML += `<label class="flex items-center space-x-2 text-xs"><input type="checkbox" name="turma-prova" value="${t.nome}"> <span>${t.nome}</span></label>`;
+        if(boxCheck) boxCheck.innerHTML += `<label class="flex items-center space-x-2 text-xs"><input type="checkbox" name="turma-prova" value="${t.nome}"> <span>${t.nome}</span></label>`;
         if(relTurma) relTurma.innerHTML += `<option value="${t.nome}">${t.nome}</option>`;
       });
       if(window.turmasSalvas.length > 0) {
@@ -342,11 +347,10 @@
       }
     }
 
-    // --- CADASTRO DE TURMAS E ALUNOS ---
     window.salvarTurma = async function() {
       const nome = document.getElementById('input-nome-turma').value.trim();
       if(!nome) return alert("Digite o nome da turma.");
-      await addDoc(collection(db, "turmas"), {nome});
+      await db.collection("turmas").add({nome});
       document.getElementById('input-nome-turma').value = "";
       carregarDadosDoBanco();
       alert("Turma salva com sucesso!");
@@ -357,7 +361,7 @@
       const nome = document.getElementById('input-nome-aluno').value.trim();
       if(!turma || !nome) return alert("Selecione a turma e digite o nome do aluno.");
       
-      await addDoc(collection(db, "alunos"), {turma, nome});
+      await db.collection("alunos").add({turma, nome});
       document.getElementById('input-nome-aluno').value = "";
       carregarDadosDoBanco();
     };
@@ -367,7 +371,6 @@
       const container = document.getElementById('lista-alunos-container');
       const alunosTurma = window.alunosSalvos.filter(a => a.turma === turmaSel);
       
-      // Ordem alfabética de alunos
       alunosTurma.sort((a,b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
       if(alunosTurma.length === 0) {
@@ -382,7 +385,6 @@
       container.innerHTML = html;
     };
 
-    // --- CADASTRO DE PROVAS E GABARITO ---
     window.gerarCamposGabarito = function() {
       const qts = parseInt(document.getElementById('prova-qts').value) || 10;
       const opcoesQtd = parseInt(document.getElementById('prova-opcoes-qtd').value) || 4;
@@ -446,20 +448,19 @@
         gabarito[i] = document.getElementById(`gab-q-${i}`).value;
       }
 
-      await addDoc(collection(db, "provas"), {nome, turmas, qts, valor, opcoes, formato, colunas, gabarito});
+      await db.collection("provas").add({nome, turmas, qts, valor, opcoes, formato, colunas, gabarito});
       alert("Prova cadastrada com sucesso!");
       carregarDadosDoBanco();
     };
 
-    // --- GERAR GABARITOS A4 PDF ---
     window.atualizarSelectProvasGabarito = function() {
       const sel = document.getElementById('select-prova-gabaritos');
       const relSel = document.getElementById('rel-select-prova');
-      sel.innerHTML = '<option value="">Selecione a Prova</option>';
+      if(sel) sel.innerHTML = '<option value="">Selecione a Prova</option>';
       if(relSel) relSel.innerHTML = '<option value="">Selecione a Prova</option>';
 
       window.provasSalvas.forEach(p => {
-        sel.innerHTML += `<option value="${p.id}">${p.nome}</option>`;
+        if(sel) sel.innerHTML += `<option value="${p.id}">${p.nome}</option>`;
         if(relSel) relSel.innerHTML += `<option value="${p.id}">${p.nome}</option>`;
       });
     };
@@ -469,7 +470,6 @@
       if(!idProva) return alert("Selecione uma prova.");
       const prova = window.provasSalvas.find(p => p.id === idProva);
 
-      // Alunos das turmas da prova
       const alunosAlvos = window.alunosSalvos.filter(a => prova.turmas.includes(a.turma));
       if(alunosAlvos.length === 0) return alert("Nenhum aluno encontrado para as turmas desta prova.");
 
@@ -480,7 +480,6 @@
         const aluno = alunosAlvos[idx];
         if(idx > 0) doc.addPage();
 
-        // Cabeçalho Escola
         doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
         doc.text("Escola Estadual São Tomaz de Aquino", 14, 15);
@@ -491,21 +490,18 @@
         doc.text(`Turma: ${aluno.turma} | Avaliação: ${prova.nome}`, 14, 29);
         doc.line(14, 33, 196, 33);
 
-        // QR Code gerado em elemento temporário
         const qrContainer = document.createElement('div');
         const qrPayload = JSON.stringify({ alunoId: aluno.id, alunoNome: aluno.nome, turma: aluno.turma, provaId: prova.id });
         new QRCode(qrContainer, { text: qrPayload, width: 80, height: 80 });
-        await new Promise(r => setTimeout(r, 100)); // Aguarda render QR
+        await new Promise(r => setTimeout(r, 100));
         const canvasQR = qrContainer.querySelector('canvas');
         if(canvasQR) {
           const imgData = canvasQR.toDataURL("image/png");
           doc.addImage(imgData, 'PNG', 165, 12, 30, 30);
         }
 
-        // Desenho das Questões
         let startY = 42;
         let colX = 14;
-        let colWidth = prova.colunas === 2 ? 90 : 180;
         let simbolo = prova.formato === 'quadrado' ? '□' : (prova.formato === 'elipse' ? '⬭' : '○');
         let letras = ['A', 'B', 'C', 'D', 'E'];
 
@@ -521,7 +517,6 @@
           startY += 7;
         }
 
-        // Rodapé com assinatura
         doc.line(14, 275, 100, 275);
         doc.setFontSize(8);
         doc.text("Assinatura do Aluno", 14, 280);
@@ -531,7 +526,6 @@
       doc.save(`gabaritos-${prova.nome.replace(/\s+/g, '_')}.pdf`);
     };
 
-    // --- LEITOR POR CÂMERA (QR CODE + RESPOSTAS) ---
     function prepararLeitorCamera() {
       modoLeitura = 'qrcode';
       document.getElementById('status-leitor-box').innerText = "Aguardando leitura do QR Code do aluno...";
@@ -555,7 +549,8 @@
       if(videoStream) {
         videoStream.getTracks().forEach(t => t.stop());
         videoStream = null;
-        document.getElementById('btn-ligar-camera').classList.remove('hidden');
+        const btnCam = document.getElementById('btn-ligar-camera');
+        if(btnCam) btnCam.classList.remove('hidden');
       }
     }
 
@@ -578,12 +573,11 @@
               const dadosQR = JSON.parse(code.data);
               alunoDetectadoTemp = dadosQR;
               
-              // Pausa momentânea e exibe confirmação
               document.getElementById('status-leitor-box').innerText = "QR Code lido com sucesso! Confirme abaixo.";
               document.getElementById('txt-aluno-confirmado').innerText = `Aluno: ${dadosQR.alunoNome} (${dadosQR.turma})`;
               document.getElementById('txt-prova-confirmada').innerText = `Prova ID: ${dadosQR.provaId}`;
               document.getElementById('modal-confirmacao-aluno').classList.remove('hidden');
-              return; // Para o loop até confirmar
+              return;
             } catch(err) { console.error("QR Code inválido"); }
           }
         }
@@ -596,7 +590,6 @@
       document.getElementById('modal-confirmacao-aluno').classList.add('hidden');
       document.getElementById('status-leitor-box').innerText = `Lendo gabarito de ${alunoDetectadoTemp.alunoNome}... Posicione a folha de respostas.`;
       
-      // Simulação automatizada robusta de leitura óptica das respostas do aluno (conforme solicitado por leitor sem toque manual)
       setTimeout(() => {
         corrigirERegistrarRespostasAutomaticas();
       }, 4000);
@@ -606,13 +599,11 @@
       const prova = window.provasSalvas.find(p => p.id === alunoDetectadoTemp.provaId);
       if(!prova) return alert("Prova não encontrada.");
 
-      // Simula leitura das marcações da folha pelo leitor óptico
       let acertos = 0;
       let respostasAluno = {};
       let letras = ['A', 'B', 'C', 'D', 'E'];
 
       for(let i=1; i<=prova.qts; i++) {
-        // Simulação de marcação ótica correta / aleatória para demonstração do leitor
         let respSorteada = letras[Math.floor(Math.random() * prova.opcoes)];
         respostasAluno[i] = respSorteada;
         if(respSorteada === prova.gabarito[i]) acertos++;
@@ -620,8 +611,7 @@
 
       let notaCalculada = (acertos / prova.qts) * prova.valor;
 
-      // Salva no Firestore
-      await addDoc(collection(db, "resultados"), {
+      await db.collection("resultados").add({
         idProva: prova.id,
         alunoId: alunoDetectadoTemp.alunoId,
         aluno: alunoDetectadoTemp.alunoNome,
@@ -645,7 +635,6 @@
       requestAnimationFrame(processarFrameCamera);
     };
 
-    // --- PLANILHAS E RELATÓRIOS ---
     window.atualizarSelectsRelatorios = function() {
       const selProva = document.getElementById('rel-select-prova');
       const selTurma = document.getElementById('rel-select-turma');
@@ -670,8 +659,6 @@
 
       const prova = window.provasSalvas.find(p => p.id === idProva);
       const resultadosTurma = window.resultadosSalvos.filter(r => r.idProva === idProva && r.turma === turma);
-      
-      // Ordena alunos em ordem alfabética na tabela
       resultadosTurma.sort((a,b) => a.aluno.localeCompare(b.aluno, 'pt-BR'));
 
       document.getElementById('rel-header-info').innerText = `Escola Estadual São Tomaz de Aquino | Turma: ${turma} | Prova: ${prova ? prova.nome : ''}`;
