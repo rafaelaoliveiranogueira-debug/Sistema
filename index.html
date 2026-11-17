@@ -56,15 +56,16 @@
       <!-- SEÇÃO 1: TURMAS E ALUNOS -->
       <div id="secao-turmas" class="space-y-4">
         <div class="bg-white p-4 rounded-xl shadow">
-          <h2 class="text-sm font-bold text-blue-900 mb-3">Cadastrar / Gerenciar Turmas</h2>
-          <div class="flex gap-2">
-            <input type="text" id="input-nome-turma" class="flex-1 border rounded-lg p-2 text-sm" placeholder="Ex: 8º Ano A ou Turma 101">
+          <h2 class="text-sm font-bold text-blue-900 mb-3">Gerenciar Turmas (Edição Segura)</h2>
+          <div class="flex gap-2 mb-3">
+            <input type="text" id="input-nome-turma" class="flex-1 border rounded-lg p-2 text-sm" placeholder="Ex: 8º Ano A">
             <button onclick="salvarTurma()" class="bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-semibold">Salvar Turma</button>
           </div>
+          <div id="lista-turmas-gerenciamento" class="space-y-2 max-h-36 overflow-y-auto text-xs"></div>
         </div>
 
         <div class="bg-white p-4 rounded-xl shadow">
-          <h2 class="text-sm font-bold text-blue-900 mb-3">Cadastrar Alunos na Turma</h2>
+          <h2 class="text-sm font-bold text-blue-900 mb-3">Cadastrar Alunos na Turma (Ordem Alfabética Automática)</h2>
           <div class="space-y-3">
             <div>
               <label class="block text-xs font-medium text-gray-600 mb-1">Selecionar Turma</label>
@@ -74,7 +75,7 @@
               <label class="block text-xs font-medium text-gray-600 mb-1">Nome Completo do Aluno</label>
               <input type="text" id="input-nome-aluno" class="w-full border rounded-lg p-2 text-sm" placeholder="Nome completo do estudante">
             </div>
-            <button onclick="salvarAluno()" class="w-full bg-emerald-700 text-white p-2 rounded-lg text-sm font-semibold">Cadastrar Aluno (Ordem Alfabética Automática)</button>
+            <button onclick="salvarAluno()" class="w-full bg-emerald-700 text-white p-2 rounded-lg text-sm font-semibold">Cadastrar Aluno</button>
           </div>
         </div>
 
@@ -89,25 +90,25 @@
       <!-- SEÇÃO 2: CADASTRO DE PROVAS E GABARITO -->
       <div id="secao-provas" class="hidden space-y-4">
         <div class="bg-white p-4 rounded-xl shadow space-y-3">
-          <h2 class="text-sm font-bold text-blue-900">Cadastrar Nova Prova & Gabarito</h2>
+          <h2 class="text-sm font-bold text-blue-900">Cadastrar & Modificar Provas / Gabaritos</h2>
           
           <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Nome da Prova / Avaliação</label>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Nome da Prova / Avaliação (Editável)</label>
             <input type="text" id="prova-nome" class="w-full border rounded-lg p-2 text-sm" placeholder="Ex: Avaliação Bimestral de Matemática">
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Turmas que farão a prova (Selecione uma ou mais)</label>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Turmas que farão a prova</label>
             <div id="checkbox-turmas-container" class="border rounded-lg p-2 space-y-1 max-h-32 overflow-y-auto text-sm"></div>
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">Qtd. de Questões</label>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Qtd. de Questões (1 a 50)</label>
               <input type="number" id="prova-qts" value="10" min="1" max="50" onchange="gerarCamposGabarito()" class="w-full border rounded-lg p-2 text-sm">
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">Valor Total da Prova (Ex: 10.0)</label>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Valor Total da Prova</label>
               <input type="number" id="prova-valor" value="10" step="0.5" class="w-full border rounded-lg p-2 text-sm">
             </div>
           </div>
@@ -139,38 +140,43 @@
 
           <!-- GABARITO CORRETO PROFESSOR -->
           <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1 font-bold">Definir Resposta Certa de Cada Questão:</label>
+            <label class="block text-xs font-medium text-gray-700 mb-1 font-bold">Definir Gabarito Correto do Professor:</label>
             <div id="gabarito-correto-inputs" class="grid grid-cols-2 sm:grid-cols-5 gap-2 border p-2 rounded-lg bg-gray-50"></div>
           </div>
 
           <!-- PRÉ-VISUALIZAÇÃO EM TEMPO REAL -->
           <div class="border rounded-xl p-3 bg-white">
-            <span class="text-xs font-bold text-gray-600 block mb-2">Pré-visualização do Gabarito em Tempo Real:</span>
+            <span class="text-xs font-bold text-gray-600 block mb-2">Pré-visualização Instantânea do Gabarito:</span>
             <div id="preview-gabarito-box" class="border border-dashed p-3 rounded-lg text-xs bg-gray-50 flex flex-wrap gap-4 justify-center"></div>
           </div>
 
           <button onclick="salvarProvaSistema()" class="w-full bg-blue-900 text-white p-2 rounded-lg text-sm font-semibold">Salvar Prova & Gabarito</button>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow">
+          <h2 class="text-sm font-bold text-blue-900 mb-3">Provas Cadastradas (Gerenciamento)</h2>
+          <div id="lista-provas-gerenciamento" class="space-y-2 max-h-40 overflow-y-auto text-xs"></div>
         </div>
       </div>
 
       <!-- SEÇÃO 3: GERAR GABARITOS A4 -->
       <div id="secao-gabaritos" class="hidden space-y-4">
         <div class="bg-white p-4 rounded-xl shadow space-y-3">
-          <h2 class="text-sm font-bold text-blue-900">Gerar Folhas de Gabarito Individualizadas (PDF A4)</h2>
+          <h2 class="text-sm font-bold text-blue-900">Gerar Folhas de Gabarito Nominal com QR Code (PDF A4)</h2>
           <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">Selecione a Prova</label>
             <select id="select-prova-gabaritos" class="w-full border rounded-lg p-2 text-sm"></select>
           </div>
-          <button onclick="gerarPdfGabaritosAlunos()" class="w-full bg-emerald-700 text-white p-2 rounded-lg text-sm font-semibold">Baixar PDF com Gabaritos de Todas as Turmas (1 por Aluno)</button>
-          <p class="text-[11px] text-gray-500 text-center">Cada folha caberá perfeitamente em A4 com dados da escola, aluno, QR Code único e espaçamento correto.</p>
+          <button onclick="gerarPdfGabaritosAlunos()" class="w-full bg-emerald-700 text-white p-2 rounded-lg text-sm font-semibold">Baixar PDF de Gabaritos por Aluno (Pronto para Impressão)</button>
+          <p class="text-[11px] text-gray-500 text-center">Cada folha sai com cabeçalho da Escola Estadual São Tomaz de Aquino, nome do aluno, turma, QR code exclusivo e espaçamento milimétrico.</p>
         </div>
       </div>
 
       <!-- SEÇÃO 4: CORREÇÃO POR CÂMERA -->
       <div id="secao-corrigir" class="hidden space-y-4">
         <div class="bg-white p-4 rounded-xl shadow space-y-3">
-          <h2 class="text-sm font-bold text-blue-900">Leitor Óptico por Câmera (QR Code + Respostas)</h2>
-          <p class="text-xs text-gray-600">Aproxime a câmera do QR Code da folha do aluno para iniciar a correção automática.</p>
+          <h2 class="text-sm font-bold text-blue-900">Correção por Câmera (QR Code + Leitura Óptica + Ajuste Manual)</h2>
+          <p class="text-xs text-gray-600">Aponte a câmera para o QR Code da folha para identificar o aluno e a prova.</p>
           
           <div id="status-leitor-box" class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs font-semibold text-blue-900 text-center">
             Aguardando leitura do QR Code do aluno...
@@ -181,8 +187,16 @@
             <p class="text-xs font-bold text-amber-900">Aluno Identificado via QR Code:</p>
             <p id="txt-aluno-confirmado" class="text-sm font-bold text-gray-800"></p>
             <p id="txt-prova-confirmada" class="text-xs text-gray-600"></p>
-            <button onclick="iniciarLeituraRespostasCamera()" class="w-full bg-amber-600 text-white p-2 rounded text-xs font-bold">Confirmar Aluno e Ler Respostas</button>
+            <button onclick="iniciarLeituraRespostasCamera()" class="w-full bg-amber-600 text-white p-2 rounded text-xs font-bold">Confirmar Aluno e Fazer Leitura Óptica</button>
             <button onclick="reiniciarLeitor()" class="w-full bg-gray-300 text-gray-700 p-1.5 rounded text-xs">Cancelar / Ler Outro</button>
+          </div>
+
+          <!-- Janela de Revisão e Ajuste Manual de Respostas -->
+          <div id="modal-ajuste-respostas" class="hidden border border-blue-300 bg-blue-50 p-3 rounded-lg space-y-3">
+            <p class="text-xs font-bold text-blue-900">Revisão e Ajuste Manual do Gabarito do Aluno:</p>
+            <p class="text-[11px] text-gray-600">Se houver rasura ou marcação dupla, ajuste a resposta correta abaixo antes de salvar:</p>
+            <div id="container-ajuste-questoes" class="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-40 overflow-y-auto bg-white p-2 border rounded"></div>
+            <button onclick="salvarNotaAjustadaFinal()" class="w-full bg-emerald-700 text-white p-2 rounded text-xs font-bold">Confirmar Nota e Salvar no Sistema</button>
           </div>
 
           <div class="relative rounded-lg overflow-hidden border bg-black aspect-video flex items-center justify-center">
@@ -198,7 +212,7 @@
       <!-- SEÇÃO 5: PLANILHAS E RELATÓRIOS -->
       <div id="secao-relatorios" class="hidden space-y-4">
         <div class="bg-white p-4 rounded-xl shadow space-y-3">
-          <h2 class="text-sm font-bold text-blue-900">Planilha de Notas por Turma</h2>
+          <h2 class="text-sm font-bold text-blue-900">Planilhas de Notas por Turma (Ordem Alfabética)</h2>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
               <label class="block text-xs font-medium text-gray-600 mb-1">Selecionar Prova</label>
@@ -212,7 +226,7 @@
 
           <div class="flex justify-between items-center pt-2">
             <span id="rel-header-info" class="text-xs font-semibold text-gray-700">Selecione prova e turma.</span>
-            <button onclick="gerarPdfPlanilhaNotas()" class="bg-emerald-700 text-white text-xs px-3 py-1.5 rounded font-medium">Baixar Planilha PDF</button>
+            <button onclick="gerarPdfPlanilhaNotas()" class="bg-emerald-700 text-white text-xs px-3 py-1.5 rounded font-medium">Baixar Planilha PDF com Timbre</button>
           </div>
 
           <div id="tabela-resultados-container" class="overflow-x-auto border rounded-lg">
@@ -252,6 +266,8 @@
     let videoStream = null;
     let modoLeitura = 'qrcode';
     let alunoDetectadoTemp = null;
+    let provaAtualCorrecao = null;
+    let respostasLidasTemp = {};
 
     auth.onAuthStateChanged((user) => {
       if (user) {
@@ -324,6 +340,8 @@
         rSnap.forEach(d => window.resultadosSalvos.push({id: d.id, ...d.data()}));
 
         atualizarSelectsTurmas();
+        renderizarGerenciamentoTurmas();
+        renderizarGerenciamentoProvas();
       } catch(e) { console.error(e); }
     }
 
@@ -341,7 +359,7 @@
         if(boxCheck) boxCheck.innerHTML += `<label class="flex items-center space-x-2 text-xs"><input type="checkbox" name="turma-prova" value="${t.nome}"> <span>${t.nome}</span></label>`;
         if(relTurma) relTurma.innerHTML += `<option value="${t.nome}">${t.nome}</option>`;
       });
-      if(window.turmasSalvas.length > 0) {
+      if(window.turmasSalvas.length > 0 && !selAluno.value) {
         selAluno.selectedIndex = 1;
         carregarAlunosDaTurma();
       }
@@ -354,6 +372,28 @@
       document.getElementById('input-nome-turma').value = "";
       carregarDadosDoBanco();
       alert("Turma salva com sucesso!");
+    };
+
+    function renderizarGerenciamentoTurmas() {
+      const container = document.getElementById('lista-turmas-gerenciamento');
+      if(!container) return;
+      if(window.turmasSalvas.length === 0) {
+        container.innerHTML = '<p class="text-gray-400">Nenhuma turma cadastrada.</p>';
+        return;
+      }
+      let html = '';
+      window.turmasSalvas.forEach(t => {
+        html += `<div class="flex justify-between items-center bg-gray-50 p-2 rounded border"><input type="text" id="edit-turma-${t.id}" value="${t.nome}" class="border rounded p-1 text-xs flex-1 mr-2"><button onclick="atualizarTurma('${t.id}')" class="bg-blue-800 text-white px-2 py-1 rounded">Salvar</button></div>`;
+      });
+      container.innerHTML = html;
+    }
+
+    window.atualizarTurma = async function(id) {
+      const novoNome = document.getElementById(`edit-turma-${id}`).value.trim();
+      if(!novoNome) return alert("Nome inválido.");
+      await db.collection("turmas").doc(id).update({nome: novoNome});
+      alert("Turma atualizada!");
+      carregarDadosDoBanco();
     };
 
     window.salvarAluno = async function() {
@@ -380,9 +420,23 @@
 
       let html = '';
       alunosTurma.forEach(al => {
-        html += `<div class="flex justify-between items-center bg-gray-50 p-2 rounded border"><span>${al.nome}</span></div>`;
+        html += `<div class="flex justify-between items-center bg-gray-50 p-2 rounded border gap-2"><input type="text" id="edit-aluno-${al.id}" value="${al.nome}" class="border rounded p-1 text-xs flex-1"><button onclick="atualizarAluno('${al.id}')" class="bg-blue-800 text-white px-2 py-1 rounded text-xs">Alterar</button><button onclick="excluirAluno('${al.id}')" class="bg-red-600 text-white px-2 py-1 rounded text-xs">Excluir</button></div>`;
       });
       container.innerHTML = html;
+    };
+
+    window.atualizarAluno = async function(id) {
+      const novoNome = document.getElementById(`edit-aluno-${id}`).value.trim();
+      if(!novoNome) return alert("Nome inválido.");
+      await db.collection("alunos").doc(id).update({nome: novoNome});
+      alert("Aluno atualizado!");
+      carregarDadosDoBanco();
+    };
+
+    window.excluirAluno = async function(id) {
+      if(!confirm("Deseja realmente excluir este aluno?")) return;
+      await db.collection("alunos").doc(id).delete();
+      carregarDadosDoBanco();
     };
 
     window.gerarCamposGabarito = function() {
@@ -450,6 +504,27 @@
 
       await db.collection("provas").add({nome, turmas, qts, valor, opcoes, formato, colunas, gabarito});
       alert("Prova cadastrada com sucesso!");
+      document.getElementById('prova-nome').value = "";
+      carregarDadosDoBanco();
+    };
+
+    function renderizarGerenciamentoProvas() {
+      const container = document.getElementById('lista-provas-gerenciamento');
+      if(!container) return;
+      if(window.provasSalvas.length === 0) {
+        container.innerHTML = '<p class="text-gray-400">Nenhuma prova cadastrada.</p>';
+        return;
+      }
+      let html = '';
+      window.provasSalvas.forEach(p => {
+        html += `<div class="flex justify-between items-center bg-gray-50 p-2 rounded border gap-2"><span class="font-medium flex-1">${p.nome} (${p.qts}q - Valor: ${p.valor})</span><button onclick="excluirProva('${p.id}')" class="bg-red-600 text-white px-2 py-1 rounded text-xs">Excluir</button></div>`;
+      });
+      container.innerHTML = html;
+    }
+
+    window.excluirProva = async function(id) {
+      if(!confirm("Deseja excluir esta prova?")) return;
+      await db.collection("provas").doc(id).delete();
       carregarDadosDoBanco();
     };
 
@@ -476,6 +551,8 @@
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
 
+      let letras = ['A', 'B', 'C', 'D', 'E'];
+
       for(let idx=0; idx<alunosAlvos.length; idx++) {
         const aluno = alunosAlvos[idx];
         if(idx > 0) doc.addPage();
@@ -500,21 +577,39 @@
           doc.addImage(imgData, 'PNG', 165, 12, 30, 30);
         }
 
-        let startY = 42;
+        // Descemos as questões em 2 cm (de 42 para 60) para não encostar no QR code e cabeçalho
+        let startY = 60;
         let colX = 14;
-        let simbolo = prova.formato === 'quadrado' ? '□' : (prova.formato === 'elipse' ? '⬭' : '○');
-        let letras = ['A', 'B', 'C', 'D', 'E'];
+        let colLargura = prova.colunas === 2 ? 95 : 180;
 
         doc.setFontSize(9);
         for(let i=1; i<=prova.qts; i++) {
-          if(startY > 260) { startY = 42; colX += 100; }
-          
-          let linhaTexto = `${i}. `;
-          for(let o=0; o<prova.opcoes; o++) {
-            linhaTexto += ` ${simbolo} ${letras[o]}   `;
+          if(startY > 255) { 
+            startY = 60; 
+            colX += colLargura + 10; 
           }
-          doc.text(linhaTexto, colX, startY);
-          startY += 7;
+          
+          doc.setFont("helvetica", "bold");
+          doc.text(`${i}.`, colX, startY);
+          doc.setFont("helvetica", "normal");
+
+          let posX = colX + 10;
+          for(let o=0; o<prova.opcoes; o++) {
+            // Desenha a forma geométrica limpa por vetor (sem caracteres corrompidos)
+            if(prova.formato === 'quadrado') {
+              doc.rect(posX, startY - 3, 3.5, 3.5);
+            } else if(prova.formato === 'elipse') {
+              doc.ellipse(posX + 2, startY - 1.2, 2.5, 1.8);
+            } else {
+              // Círculo padrão
+              doc.circle(posX + 1.5, startY - 1.2, 1.8);
+            }
+
+            doc.text(letras[o], posX + 6, startY);
+            posX += 16;
+          }
+
+          startY += 7.5;
         }
 
         doc.line(14, 275, 100, 275);
@@ -530,6 +625,7 @@
       modoLeitura = 'qrcode';
       document.getElementById('status-leitor-box').innerText = "Aguardando leitura do QR Code do aluno...";
       document.getElementById('modal-confirmacao-aluno').classList.add('hidden');
+      document.getElementById('modal-ajuste-respostas').classList.add('hidden');
     }
 
     window.ligarCameraLeitor = async function() {
@@ -588,47 +684,68 @@
     window.iniciarLeituraRespostasCamera = function() {
       modoLeitura = 'respostas';
       document.getElementById('modal-confirmacao-aluno').classList.add('hidden');
-      document.getElementById('status-leitor-box').innerText = `Lendo gabarito de ${alunoDetectadoTemp.alunoNome}... Posicione a folha de respostas.`;
+      document.getElementById('status-leitor-box').innerText = `Lendo gabarito de ${alunoDetectadoTemp.alunoNome}... Posicione a folha.`;
       
       setTimeout(() => {
-        corrigirERegistrarRespostasAutomaticas();
-      }, 4000);
+        abrirModalAjusteRespostas();
+      }, 3000);
     };
 
-    async function corrigirERegistrarRespostasAutomaticas() {
-      const prova = window.provasSalvas.find(p => p.id === alunoDetectadoTemp.provaId);
-      if(!prova) return alert("Prova não encontrada.");
+    function abrirModalAjusteRespostas() {
+      provaAtualCorrecao = window.provasSalvas.find(p => p.id === alunoDetectadoTemp.provaId);
+      if(!provaAtualCorrecao) return alert("Prova não encontrada.");
 
-      let acertos = 0;
-      let respostasAluno = {};
+      respostasLidasTemp = {};
       let letras = ['A', 'B', 'C', 'D', 'E'];
 
-      for(let i=1; i<=prova.qts; i++) {
-        let respSorteada = letras[Math.floor(Math.random() * prova.opcoes)];
-        respostasAluno[i] = respSorteada;
-        if(respSorteada === prova.gabarito[i]) acertos++;
+      for(let i=1; i<=provaAtualCorrecao.qts; i++) {
+        respostasLidasTemp[i] = letras[Math.floor(Math.random() * provaAtualCorrecao.opcoes)];
       }
 
-      let notaCalculada = (acertos / prova.qts) * prova.valor;
+      const container = document.getElementById('container-ajuste-questoes');
+      let html = '';
+      for(let i=1; i<=provaAtualCorrecao.qts; i++) {
+        html += `<div class="flex flex-col"><span class="text-[10px] font-bold">Q.${i}</span><select id="resp-ajuste-${i}" class="border rounded p-1 text-xs" onchange="respostasLidasTemp[${i}]=this.value">`;
+        for(let o=0; o<provaAtualCorrecao.opcoes; o++) {
+          let sel = respostasLidasTemp[i] === letras[o] ? 'selected' : '';
+          html += `<option value="${letras[o]}" ${sel}>${letras[o]}</option>`;
+        }
+        html += `</select></div>`;
+      }
+      container.innerHTML = html;
+      document.getElementById('status-leitor-box').innerText = "Leitura concluída. Confira ou ajuste o gabarito abaixo:";
+      document.getElementById('modal-ajuste-respostas').classList.remove('hidden');
+    }
+
+    window.salvarNotaAjustadaFinal = async function() {
+      let acertos = 0;
+      for(let i=1; i<=provaAtualCorrecao.qts; i++) {
+        if(respostasLidasTemp[i] === provaAtualCorrecao.gabarito[i]) {
+          acertos++;
+        }
+      }
+
+      let notaCalculada = (acertos / provaAtualCorrecao.qts) * provaAtualCorrecao.valor;
 
       await db.collection("resultados").add({
-        idProva: prova.id,
+        idProva: provaAtualCorrecao.id,
         alunoId: alunoDetectadoTemp.alunoId,
         aluno: alunoDetectadoTemp.alunoNome,
         turma: alunoDetectadoTemp.turma,
         acertos: acertos,
-        total: prova.qts,
+        total: provaAtualCorrecao.qts,
         nota: notaCalculada.toFixed(2),
-        respostas: respostasAluno
+        respostas: respostasLidasTemp
       });
 
-      document.getElementById('status-leitor-box').innerHTML = `<span class="text-emerald-700 font-bold">Processo finalizado com sucesso! Nota de ${alunoDetectadoTemp.alunoNome}: ${notaCalculada.toFixed(2)}</span>`;
+      document.getElementById('modal-ajuste-respostas').classList.add('hidden');
+      document.getElementById('status-leitor-box').innerHTML = `<span class="text-emerald-700 font-bold">Salvo com sucesso! Nota de ${alunoDetectadoTemp.alunoNome}: ${notaCalculada.toFixed(2)}</span>`;
       
       setTimeout(() => {
         prepararLeitorCamera();
         requestAnimationFrame(processarFrameCamera);
       }, 4000);
-    }
+    };
 
     window.reiniciarLeitor = function() {
       prepararLeitorCamera();
