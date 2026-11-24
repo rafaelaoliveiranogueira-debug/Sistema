@@ -175,7 +175,7 @@
           <p class="text-[11px] text-gray-500 text-center">Cada folha sai com cabeçalho da Escola Estadual São Tomaz de Aquino, nome do aluno, turma, QR code exclusivo e espaçamento de 2 cm abaixo do QR code.</p>
         </div>
         <!-- Container oculto temporário para gerar QR codes -->
-        <div id="qr-temp-render" style="position:fixed; left:-9999px; top:-9999px; width:100px; height:100px;"></div>
+        <div id="qr-temp-render" style="position:fixed; left:-9999px; top:-9999px; width:120px; height:120px;"></div>
       </div>
 
       <!-- SEÇÃO 4: CORREÇÃO POR CÂMERA -->
@@ -597,48 +597,31 @@
       resumo.innerHTML = `<strong>Salas selecionadas:</strong> ${turmasProva.join(', ') || 'Nenhuma'}<br><strong>Total de alunos para gerar folha:</strong> ${alunosAlvos.length}`;
     };
 
-    function limparTextoQrSeguro(str) {
-      return String(str || '')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^A-Za-z0-9|:-]/g, '')
-        .slice(0, 60);
-    }
-
-    async function gerarImagemQrCodeDataUrl(payloadText) {
+    function gerarQrCodeSeguroDataUrl(codigoCurto) {
       const host = document.getElementById('qr-temp-render');
       host.innerHTML = '';
-
-      const textoLimpo = limparTextoQrSeguro(payloadText) || 'ID|0';
+      const texto = String(codigoCurto || 'QR1').replace(/[^A-Za-z0-9|:-]/g, '').slice(0, 20) || 'QR1';
 
       try {
         new QRCode(host, {
-          text: textoLimpo,
-          width: 110,
-          height: 110,
+          text: texto,
+          width: 120,
+          height: 120,
+          typeNumber: 0,
           correctLevel: QRCode.CorrectLevel.L
         });
       } catch (e) {
-        console.warn("Falha ao criar QR com texto completo, tentando fallback curto:", e);
-        host.innerHTML = '';
-        new QRCode(host, {
-          text: textoLimpo.slice(0, 24) || 'QR0',
-          width: 110,
-          height: 110,
-          correctLevel: QRCode.CorrectLevel.L
-        });
+        console.warn("QRCode ignorado por erro de codificação:", e.message);
+        return null;
       }
 
-      for (let tentativa = 0; tentativa < 8; tentativa++) {
-        await new Promise(r => setTimeout(r, 25));
-        const canvas = host.querySelector('canvas');
-        if (canvas && canvas.width > 0 && canvas.height > 0) {
-          return canvas.toDataURL('image/png');
-        }
-        const img = host.querySelector('img');
-        if (img && img.src && img.src.startsWith('data:image')) {
-          return img.src;
-        }
+      const canvas = host.querySelector('canvas');
+      if (canvas && canvas.width > 0 && canvas.height > 0) {
+        return canvas.toDataURL('image/png');
+      }
+      const img = host.querySelector('img');
+      if (img && img.src && img.src.startsWith('data:image')) {
+        return img.src;
       }
       return null;
     }
@@ -704,6 +687,9 @@
         const colunas = parseInt(prova.colunas) || 1;
         const formato = prova.formato || 'circulo';
 
+        // Mapa de referência rápida para o leitor reconhecer o aluno e a prova pelo código curto
+        window.mapaQrGerado = window.mapaQrGerado || {};
+
         for(let idx = 0; idx < alunosAlvos.length; idx++) {
           const aluno = alunosAlvos[idx];
           if(idx > 0) doc.addPage();
@@ -718,9 +704,17 @@
           doc.text(`Turma: ${aluno.turma} | Avaliação: ${prova.nome}`, 14, 29);
           doc.line(14, 33, 196, 33);
 
-          // Payload compacto para evitar "code length overflow" no QR code
-          const qrPayload = `${aluno.id}|${prova.id}`;
-          const qrDataUrl = await gerarImagemQrCodeDataUrl(qrPayload);
+          // Código curto (ex: Q1|001) para nunca estourar a capacidade do QR Code
+          const codCurto = `Q1|${String(idx + 1).padStart(3, '0')}`;
+          window.mapaQrGerado[codCurto] = {
+            alunoId: aluno.id,
+            alunoNome: aluno.nome,
+            turma: aluno.turma,
+            provaId: prova.id,
+            provaNome: prova.nome
+          };
+
+          const qrDataUrl = gerarQrCodeSeguroDataUrl(codCurto);
           if(qrDataUrl) {
             doc.addImage(qrDataUrl, 'PNG', 165, 10, 30, 30);
           }
@@ -809,14 +803,19 @@
     }
 
     function interpretarQrCodeLido(textoQr) {
+      const limpo = String(textoQr || '').trim();
+      if (window.mapaQrGerado && window.mapaQrGerado[limpo]) {
+        return window.mapaQrGerado[limpo];
+      }
+
       try {
-        const obj = JSON.parse(textoQr);
+        const obj = JSON.parse(limpo);
         if (obj && obj.alunoId && obj.provaId) {
-          return { alunoId: obj.alunoId, provaId: obj.provaId };
+          return obj;
         }
       } catch (_) {}
 
-      const partes = String(textoQr || '').split('|');
+      const partes = limpo.split('|');
       if (partes.length >= 2 && partes[0] && partes[1]) {
         return { alunoId: partes[0], provaId: partes[1] };
       }
@@ -848,7 +847,7 @@
                 alunoNome: alunoEncontrado ? alunoEncontrado.nome : (parsed.alunoNome || 'Aluno'),
                 turma: alunoEncontrado ? alunoEncontrado.turma : (parsed.turma || ''),
                 provaId: parsed.provaId,
-                provaNome: provaEncontrada ? provaEncontrada.nome : parsed.provaId
+                provaNome: provaEncontrada ? provaEncontrada.nome : (parsed.provaNome || parsed.provaId)
               };
               
               document.getElementById('status-leitor-box').innerText = "QR Code lido com sucesso! Confirme abaixo.";
