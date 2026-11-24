@@ -597,18 +597,40 @@
       resumo.innerHTML = `<strong>Salas selecionadas:</strong> ${turmasProva.join(', ') || 'Nenhuma'}<br><strong>Total de alunos para gerar folha:</strong> ${alunosAlvos.length}`;
     };
 
+    function limparTextoQrSeguro(str) {
+      return String(str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Za-z0-9|:-]/g, '')
+        .slice(0, 60);
+    }
+
     async function gerarImagemQrCodeDataUrl(payloadText) {
       const host = document.getElementById('qr-temp-render');
       host.innerHTML = '';
-      new QRCode(host, {
-        text: payloadText,
-        width: 120,
-        height: 120,
-        correctLevel: QRCode.CorrectLevel.M
-      });
 
-      for (let tentativa = 0; tentativa < 10; tentativa++) {
-        await new Promise(r => setTimeout(r, 30));
+      const textoLimpo = limparTextoQrSeguro(payloadText) || 'ID|0';
+
+      try {
+        new QRCode(host, {
+          text: textoLimpo,
+          width: 110,
+          height: 110,
+          correctLevel: QRCode.CorrectLevel.L
+        });
+      } catch (e) {
+        console.warn("Falha ao criar QR com texto completo, tentando fallback curto:", e);
+        host.innerHTML = '';
+        new QRCode(host, {
+          text: textoLimpo.slice(0, 24) || 'QR0',
+          width: 110,
+          height: 110,
+          correctLevel: QRCode.CorrectLevel.L
+        });
+      }
+
+      for (let tentativa = 0; tentativa < 8; tentativa++) {
+        await new Promise(r => setTimeout(r, 25));
         const canvas = host.querySelector('canvas');
         if (canvas && canvas.width > 0 && canvas.height > 0) {
           return canvas.toDataURL('image/png');
@@ -633,7 +655,6 @@
       link.click();
       document.body.removeChild(link);
 
-      // Fallback para navegadores móveis que bloqueiam download automático via atributo download
       setTimeout(() => {
         if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
           const win = window.open(url, '_blank');
@@ -697,13 +718,8 @@
           doc.text(`Turma: ${aluno.turma} | Avaliação: ${prova.nome}`, 14, 29);
           doc.line(14, 33, 196, 33);
 
-          const qrPayload = JSON.stringify({
-            alunoId: aluno.id,
-            alunoNome: aluno.nome,
-            turma: aluno.turma,
-            provaId: prova.id
-          });
-
+          // Payload compacto para evitar "code length overflow" no QR code
+          const qrPayload = `${aluno.id}|${prova.id}`;
           const qrDataUrl = await gerarImagemQrCodeDataUrl(qrPayload);
           if(qrDataUrl) {
             doc.addImage(qrDataUrl, 'PNG', 165, 10, 30, 30);
@@ -792,6 +808,21 @@
       }
     }
 
+    function interpretarQrCodeLido(textoQr) {
+      try {
+        const obj = JSON.parse(textoQr);
+        if (obj && obj.alunoId && obj.provaId) {
+          return { alunoId: obj.alunoId, provaId: obj.provaId };
+        }
+      } catch (_) {}
+
+      const partes = String(textoQr || '').split('|');
+      if (partes.length >= 2 && partes[0] && partes[1]) {
+        return { alunoId: partes[0], provaId: partes[1] };
+      }
+      return null;
+    }
+
     function processarFrameCamera() {
       if(!videoStream) return;
       const video = document.getElementById('video-webcam');
@@ -807,16 +838,25 @@
 
         if(code) {
           if(modoLeitura === 'qrcode') {
-            try {
-              const dadosQR = JSON.parse(code.data);
-              alunoDetectadoTemp = dadosQR;
+            const parsed = interpretarQrCodeLido(code.data);
+            if(parsed) {
+              const alunoEncontrado = window.alunosSalvos.find(a => a.id === parsed.alunoId);
+              const provaEncontrada = window.provasSalvas.find(p => p.id === parsed.provaId);
+
+              alunoDetectadoTemp = {
+                alunoId: parsed.alunoId,
+                alunoNome: alunoEncontrado ? alunoEncontrado.nome : (parsed.alunoNome || 'Aluno'),
+                turma: alunoEncontrado ? alunoEncontrado.turma : (parsed.turma || ''),
+                provaId: parsed.provaId,
+                provaNome: provaEncontrada ? provaEncontrada.nome : parsed.provaId
+              };
               
               document.getElementById('status-leitor-box').innerText = "QR Code lido com sucesso! Confirme abaixo.";
-              document.getElementById('txt-aluno-confirmado').innerText = `Aluno: ${dadosQR.alunoNome} (${dadosQR.turma})`;
-              document.getElementById('txt-prova-confirmada').innerText = `Prova ID: ${dadosQR.provaId}`;
+              document.getElementById('txt-aluno-confirmado').innerText = `Aluno: ${alunoDetectadoTemp.alunoNome} (${alunoDetectadoTemp.turma})`;
+              document.getElementById('txt-prova-confirmada').innerText = `Prova: ${alunoDetectadoTemp.provaNome}`;
               document.getElementById('modal-confirmacao-aluno').classList.remove('hidden');
               return;
-            } catch(err) { console.error("QR Code inválido"); }
+            }
           }
         }
       }
