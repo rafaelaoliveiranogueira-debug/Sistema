@@ -165,11 +165,17 @@
           <h2 class="text-sm font-bold text-blue-900">Gerar Folhas de Gabarito Nominal com QR Code (PDF A4)</h2>
           <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">Selecione a Prova</label>
-            <select id="select-prova-gabaritos" class="w-full border rounded-lg p-2 text-sm"></select>
+            <select id="select-prova-gabaritos" class="w-full border rounded-lg p-2 text-sm" onchange="atualizarResumoGabaritosProva()"></select>
           </div>
-          <button onclick="gerarPdfGabaritosAlunos()" class="w-full bg-emerald-700 text-white p-2 rounded-lg text-sm font-semibold">Baixar PDF de Gabaritos por Aluno (Pronto para Impressão)</button>
-          <p class="text-[11px] text-gray-500 text-center">Cada folha sai com cabeçalho da Escola Estadual São Tomaz de Aquino, nome do aluno, turma, QR code exclusivo e espaçamento milimétrico.</p>
+          <div id="resumo-alunos-gabarito" class="text-xs text-gray-600 bg-gray-50 p-2.5 rounded-lg border">
+            Selecione uma prova para ver as salas vinculadas e a quantidade de alunos.
+          </div>
+          <button id="btn-gerar-pdf-gabaritos" onclick="gerarPdfGabaritosAlunos()" class="w-full bg-emerald-700 text-white p-2.5 rounded-lg text-sm font-semibold hover:bg-emerald-800 transition">Baixar PDF de Gabaritos por Aluno (Pronto para Impressão)</button>
+          <div id="status-geracao-pdf" class="text-xs text-center font-medium text-blue-900 hidden"></div>
+          <p class="text-[11px] text-gray-500 text-center">Cada folha sai com cabeçalho da Escola Estadual São Tomaz de Aquino, nome do aluno, turma, QR code exclusivo e espaçamento de 2 cm abaixo do QR code.</p>
         </div>
+        <!-- Container oculto temporário para gerar QR codes -->
+        <div id="qr-temp-render" style="position:fixed; left:-9999px; top:-9999px; width:100px; height:100px;"></div>
       </div>
 
       <!-- SEÇÃO 4: CORREÇÃO POR CÂMERA -->
@@ -274,6 +280,7 @@
         document.getElementById('auth-container').classList.add('hidden');
         document.getElementById('app-container').classList.remove('hidden');
         carregarDadosDoBanco();
+        gerarCamposGabarito();
       } else {
         document.getElementById('auth-container').classList.remove('hidden');
         document.getElementById('app-container').classList.add('hidden');
@@ -315,7 +322,14 @@
       document.getElementById(`secao-${aba}`).classList.remove('hidden');
       document.getElementById(`btn-aba-${aba}`).className = "px-3 py-2 rounded-lg bg-blue-900 text-white whitespace-nowrap text-xs font-semibold";
 
-      if(aba === 'gabaritos') atualizarSelectProvasGabarito();
+      if(aba === 'provas') {
+        atualizarSelectsTurmas();
+        gerarCamposGabarito();
+      }
+      if(aba === 'gabaritos') {
+        atualizarSelectProvasGabarito();
+        atualizarResumoGabaritosProva();
+      }
       if(aba === 'corrigir') prepararLeitorCamera();
       if(aba === 'relatorios') atualizarSelectsRelatorios();
     };
@@ -342,6 +356,7 @@
         atualizarSelectsTurmas();
         renderizarGerenciamentoTurmas();
         renderizarGerenciamentoProvas();
+        atualizarSelectProvasGabarito();
       } catch(e) { console.error(e); }
     }
 
@@ -350,6 +365,7 @@
       const boxCheck = document.getElementById('checkbox-turmas-container');
       const relTurma = document.getElementById('rel-select-turma');
 
+      const turmaAnterior = selAluno.value;
       selAluno.innerHTML = '<option value="">Selecione a Turma</option>';
       if(boxCheck) boxCheck.innerHTML = '';
       if(relTurma) relTurma.innerHTML = '<option value="">Selecione a Turma</option>';
@@ -359,7 +375,11 @@
         if(boxCheck) boxCheck.innerHTML += `<label class="flex items-center space-x-2 text-xs"><input type="checkbox" name="turma-prova" value="${t.nome}"> <span>${t.nome}</span></label>`;
         if(relTurma) relTurma.innerHTML += `<option value="${t.nome}">${t.nome}</option>`;
       });
-      if(window.turmasSalvas.length > 0 && !selAluno.value) {
+
+      if(turmaAnterior && window.turmasSalvas.some(t => t.nome === turmaAnterior)) {
+        selAluno.value = turmaAnterior;
+        carregarAlunosDaTurma();
+      } else if(window.turmasSalvas.length > 0) {
         selAluno.selectedIndex = 1;
         carregarAlunosDaTurma();
       }
@@ -370,7 +390,7 @@
       if(!nome) return alert("Digite o nome da turma.");
       await db.collection("turmas").add({nome});
       document.getElementById('input-nome-turma').value = "";
-      carregarDadosDoBanco();
+      await carregarDadosDoBanco();
       alert("Turma salva com sucesso!");
     };
 
@@ -393,7 +413,7 @@
       if(!novoNome) return alert("Nome inválido.");
       await db.collection("turmas").doc(id).update({nome: novoNome});
       alert("Turma atualizada!");
-      carregarDadosDoBanco();
+      await carregarDadosDoBanco();
     };
 
     window.salvarAluno = async function() {
@@ -403,7 +423,8 @@
       
       await db.collection("alunos").add({turma, nome});
       document.getElementById('input-nome-aluno').value = "";
-      carregarDadosDoBanco();
+      await carregarDadosDoBanco();
+      carregarAlunosDaTurma();
     };
 
     window.carregarAlunosDaTurma = function() {
@@ -430,19 +451,22 @@
       if(!novoNome) return alert("Nome inválido.");
       await db.collection("alunos").doc(id).update({nome: novoNome});
       alert("Aluno atualizado!");
-      carregarDadosDoBanco();
+      await carregarDadosDoBanco();
+      carregarAlunosDaTurma();
     };
 
     window.excluirAluno = async function(id) {
       if(!confirm("Deseja realmente excluir este aluno?")) return;
       await db.collection("alunos").doc(id).delete();
-      carregarDadosDoBanco();
+      await carregarDadosDoBanco();
+      carregarAlunosDaTurma();
     };
 
     window.gerarCamposGabarito = function() {
       const qts = parseInt(document.getElementById('prova-qts').value) || 10;
       const opcoesQtd = parseInt(document.getElementById('prova-opcoes-qtd').value) || 4;
       const container = document.getElementById('gabarito-correto-inputs');
+      if(!container) return;
       
       let letras = ['A', 'B', 'C', 'D', 'E'];
       let html = '';
@@ -463,6 +487,7 @@
       const formato = document.getElementById('prova-formato').value;
       const colunas = parseInt(document.getElementById('prova-colunas').value) || 1;
       const preview = document.getElementById('preview-gabarito-box');
+      if(!preview) return;
 
       let simbolo = '○';
       if(formato === 'quadrado') simbolo = '□';
@@ -493,19 +518,21 @@
 
       const checkboxes = document.querySelectorAll('input[name="turma-prova"]:checked');
       let turmas = [];
-      checkboxes.forEach(c => turmas.push(c.value));
+      checkboxes.forEach(c => turmas.push(c.value.trim()));
 
       if(!nome || turmas.length === 0) return alert("Preencha o nome da prova e selecione ao menos uma turma.");
 
       let gabarito = {};
       for(let i=1; i<=qts; i++) {
-        gabarito[i] = document.getElementById(`gab-q-${i}`).value;
+        const el = document.getElementById(`gab-q-${i}`);
+        gabarito[i] = el ? el.value : 'A';
       }
 
       await db.collection("provas").add({nome, turmas, qts, valor, opcoes, formato, colunas, gabarito});
       alert("Prova cadastrada com sucesso!");
       document.getElementById('prova-nome').value = "";
-      carregarDadosDoBanco();
+      checkboxes.forEach(c => c.checked = false);
+      await carregarDadosDoBanco();
     };
 
     function renderizarGerenciamentoProvas() {
@@ -517,7 +544,8 @@
       }
       let html = '';
       window.provasSalvas.forEach(p => {
-        html += `<div class="flex justify-between items-center bg-gray-50 p-2 rounded border gap-2"><span class="font-medium flex-1">${p.nome} (${p.qts}q - Valor: ${p.valor})</span><button onclick="excluirProva('${p.id}')" class="bg-red-600 text-white px-2 py-1 rounded text-xs">Excluir</button></div>`;
+        const salasTxt = Array.isArray(p.turmas) ? p.turmas.join(', ') : '';
+        html += `<div class="flex justify-between items-center bg-gray-50 p-2 rounded border gap-2"><span class="font-medium flex-1"><strong>${p.nome}</strong> (${p.qts}q - Valor: ${p.valor})<br><span class="text-[10px] text-gray-500">Salas: ${salasTxt}</span></span><button onclick="excluirProva('${p.id}')" class="bg-red-600 text-white px-2 py-1 rounded text-xs">Excluir</button></div>`;
       });
       container.innerHTML = html;
     }
@@ -525,12 +553,14 @@
     window.excluirProva = async function(id) {
       if(!confirm("Deseja excluir esta prova?")) return;
       await db.collection("provas").doc(id).delete();
-      carregarDadosDoBanco();
+      await carregarDadosDoBanco();
     };
 
     window.atualizarSelectProvasGabarito = function() {
       const sel = document.getElementById('select-prova-gabaritos');
       const relSel = document.getElementById('rel-select-prova');
+      const valorAtual = sel ? sel.value : '';
+
       if(sel) sel.innerHTML = '<option value="">Selecione a Prova</option>';
       if(relSel) relSel.innerHTML = '<option value="">Selecione a Prova</option>';
 
@@ -538,87 +568,199 @@
         if(sel) sel.innerHTML += `<option value="${p.id}">${p.nome}</option>`;
         if(relSel) relSel.innerHTML += `<option value="${p.id}">${p.nome}</option>`;
       });
+
+      if(sel && valorAtual && window.provasSalvas.some(p => p.id === valorAtual)) {
+        sel.value = valorAtual;
+      } else if(sel && window.provasSalvas.length > 0) {
+        sel.selectedIndex = 1;
+      }
+      atualizarResumoGabaritosProva();
     };
+
+    window.atualizarResumoGabaritosProva = function() {
+      const sel = document.getElementById('select-prova-gabaritos');
+      const resumo = document.getElementById('resumo-alunos-gabarito');
+      if(!sel || !resumo) return;
+
+      const idProva = sel.value;
+      if(!idProva) {
+        resumo.innerHTML = "Selecione uma prova para ver as salas vinculadas e a quantidade de alunos.";
+        return;
+      }
+
+      const prova = window.provasSalvas.find(p => p.id === idProva);
+      if(!prova) return;
+
+      const turmasProva = Array.isArray(prova.turmas) ? prova.turmas.map(t => t.trim()) : [];
+      const alunosAlvos = window.alunosSalvos.filter(a => turmasProva.includes((a.turma || '').trim()));
+
+      resumo.innerHTML = `<strong>Salas selecionadas:</strong> ${turmasProva.join(', ') || 'Nenhuma'}<br><strong>Total de alunos para gerar folha:</strong> ${alunosAlvos.length}`;
+    };
+
+    async function gerarImagemQrCodeDataUrl(payloadText) {
+      const host = document.getElementById('qr-temp-render');
+      host.innerHTML = '';
+      new QRCode(host, {
+        text: payloadText,
+        width: 120,
+        height: 120,
+        correctLevel: QRCode.CorrectLevel.M
+      });
+
+      for (let tentativa = 0; tentativa < 10; tentativa++) {
+        await new Promise(r => setTimeout(r, 30));
+        const canvas = host.querySelector('canvas');
+        if (canvas && canvas.width > 0 && canvas.height > 0) {
+          return canvas.toDataURL('image/png');
+        }
+        const img = host.querySelector('img');
+        if (img && img.src && img.src.startsWith('data:image')) {
+          return img.src;
+        }
+      }
+      return null;
+    }
+
+    function acionarDownloadPdfBlob(doc, nomeArquivo) {
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = nomeArquivo;
+      link.rel = 'noopener';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Fallback para navegadores móveis que bloqueiam download automático via atributo download
+      setTimeout(() => {
+        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+          const win = window.open(url, '_blank');
+          if (!win) {
+            window.location.href = url;
+          }
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+      }, 400);
+    }
 
     window.gerarPdfGabaritosAlunos = async function() {
       const idProva = document.getElementById('select-prova-gabaritos').value;
-      if(!idProva) return alert("Selecione uma prova.");
+      const statusEl = document.getElementById('status-geracao-pdf');
+      const btnEl = document.getElementById('btn-gerar-pdf-gabaritos');
+
+      if(!idProva) return alert("Selecione uma prova na lista.");
       const prova = window.provasSalvas.find(p => p.id === idProva);
+      if(!prova) return alert("Prova não encontrada.");
 
-      const alunosAlvos = window.alunosSalvos.filter(a => prova.turmas.includes(a.turma));
-      if(alunosAlvos.length === 0) return alert("Nenhum aluno encontrado para as turmas desta prova.");
+      const turmasProva = Array.isArray(prova.turmas) ? prova.turmas.map(t => t.trim()) : [];
+      if(turmasProva.length === 0) return alert("Esta prova não possui salas selecionadas.");
 
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
+      const alunosAlvos = window.alunosSalvos
+        .filter(a => turmasProva.includes((a.turma || '').trim()))
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
-      let letras = ['A', 'B', 'C', 'D', 'E'];
-
-      for(let idx=0; idx<alunosAlvos.length; idx++) {
-        const aluno = alunosAlvos[idx];
-        if(idx > 0) doc.addPage();
-
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.text("Escola Estadual São Tomaz de Aquino", 14, 15);
-        
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-        doc.text(`Aluno(a): ${aluno.nome}`, 14, 23);
-        doc.text(`Turma: ${aluno.turma} | Avaliação: ${prova.nome}`, 14, 29);
-        doc.line(14, 33, 196, 33);
-
-        const qrContainer = document.createElement('div');
-        const qrPayload = JSON.stringify({ alunoId: aluno.id, alunoNome: aluno.nome, turma: aluno.turma, provaId: prova.id });
-        new QRCode(qrContainer, { text: qrPayload, width: 80, height: 80 });
-        await new Promise(r => setTimeout(r, 100));
-        const canvasQR = qrContainer.querySelector('canvas');
-        if(canvasQR) {
-          const imgData = canvasQR.toDataURL("image/png");
-          doc.addImage(imgData, 'PNG', 165, 12, 30, 30);
-        }
-
-        // Descemos as questões em 2 cm (de 42 para 60) para não encostar no QR code e cabeçalho
-        let startY = 60;
-        let colX = 14;
-        let colLargura = prova.colunas === 2 ? 95 : 180;
-
-        doc.setFontSize(9);
-        for(let i=1; i<=prova.qts; i++) {
-          if(startY > 255) { 
-            startY = 60; 
-            colX += colLargura + 10; 
-          }
-          
-          doc.setFont("helvetica", "bold");
-          doc.text(`${i}.`, colX, startY);
-          doc.setFont("helvetica", "normal");
-
-          let posX = colX + 10;
-          for(let o=0; o<prova.opcoes; o++) {
-            // Desenha a forma geométrica limpa por vetor (sem caracteres corrompidos)
-            if(prova.formato === 'quadrado') {
-              doc.rect(posX, startY - 3, 3.5, 3.5);
-            } else if(prova.formato === 'elipse') {
-              doc.ellipse(posX + 2, startY - 1.2, 2.5, 1.8);
-            } else {
-              // Círculo padrão
-              doc.circle(posX + 1.5, startY - 1.2, 1.8);
-            }
-
-            doc.text(letras[o], posX + 6, startY);
-            posX += 16;
-          }
-
-          startY += 7.5;
-        }
-
-        doc.line(14, 275, 100, 275);
-        doc.setFontSize(8);
-        doc.text("Assinatura do Aluno", 14, 280);
-        doc.text(aluno.nome, 14, 284);
+      if(alunosAlvos.length === 0) {
+        return alert("Nenhum aluno encontrado nas salas selecionadas para esta prova. Cadastre alunos na aba 'Turmas & Alunos' primeiro.");
       }
 
-      doc.save(`gabaritos-${prova.nome.replace(/\s+/g, '_')}.pdf`);
+      if(!window.jspdf || !window.jspdf.jsPDF) {
+        return alert("Biblioteca de PDF ainda carregando. Aguarde 2 segundos e tente novamente.");
+      }
+
+      try {
+        btnEl.disabled = true;
+        btnEl.innerText = `Gerando PDF (${alunosAlvos.length} folhas)...`;
+        statusEl.classList.remove('hidden');
+        statusEl.innerText = `Gerando folhas individuais para ${alunosAlvos.length} aluno(s)...`;
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+        const letras = ['A', 'B', 'C', 'D', 'E'];
+        const qts = parseInt(prova.qts) || 10;
+        const opcoes = parseInt(prova.opcoes) || 4;
+        const colunas = parseInt(prova.colunas) || 1;
+        const formato = prova.formato || 'circulo';
+
+        for(let idx = 0; idx < alunosAlvos.length; idx++) {
+          const aluno = alunosAlvos[idx];
+          if(idx > 0) doc.addPage();
+
+          doc.setFontSize(12);
+          doc.setFont("helvetica", "bold");
+          doc.text("Escola Estadual São Tomaz de Aquino", 14, 15);
+          
+          doc.setFontSize(10);
+          doc.setFont("helvetica", "normal");
+          doc.text(`Aluno(a): ${aluno.nome}`, 14, 23);
+          doc.text(`Turma: ${aluno.turma} | Avaliação: ${prova.nome}`, 14, 29);
+          doc.line(14, 33, 196, 33);
+
+          const qrPayload = JSON.stringify({
+            alunoId: aluno.id,
+            alunoNome: aluno.nome,
+            turma: aluno.turma,
+            provaId: prova.id
+          });
+
+          const qrDataUrl = await gerarImagemQrCodeDataUrl(qrPayload);
+          if(qrDataUrl) {
+            doc.addImage(qrDataUrl, 'PNG', 165, 10, 30, 30);
+          }
+
+          // Descemos as questões em 2 cm (de 40 para 60 mm) para não encostar no QR code
+          let startY = 60;
+          let colX = 14;
+          const espacoColuna = colunas === 2 ? 95 : 180;
+
+          doc.setFontSize(9);
+          for(let i = 1; i <= qts; i++) {
+            if(startY > 255) { 
+              startY = 60; 
+              colX += espacoColuna; 
+            }
+            
+            doc.setFont("helvetica", "bold");
+            doc.text(`${i}.`, colX, startY);
+            doc.setFont("helvetica", "normal");
+
+            let posX = colX + 10;
+            for(let o = 0; o < opcoes; o++) {
+              if(formato === 'quadrado') {
+                doc.rect(posX, startY - 3, 3.5, 3.5);
+              } else if(formato === 'elipse') {
+                doc.ellipse(posX + 2, startY - 1.2, 2.5, 1.8);
+              } else {
+                doc.circle(posX + 1.5, startY - 1.2, 1.8);
+              }
+
+              doc.text(letras[o], posX + 6, startY);
+              posX += 16;
+            }
+
+            startY += 7.5;
+          }
+
+          doc.line(14, 275, 100, 275);
+          doc.setFontSize(8);
+          doc.text("Assinatura do Aluno", 14, 280);
+          doc.text(aluno.nome, 14, 284);
+        }
+
+        const nomeLimpo = (prova.nome || 'prova').replace(/[^\w\-]+/g, '_');
+        const nomeArquivo = `gabaritos-${nomeLimpo}.pdf`;
+        acionarDownloadPdfBlob(doc, nomeArquivo);
+
+        statusEl.innerText = `PDF "${nomeArquivo}" gerado com ${alunosAlvos.length} folha(s)! Verifique seus Downloads.`;
+      } catch (err) {
+        console.error("Erro ao gerar PDF:", err);
+        statusEl.innerText = "Erro ao gerar o PDF: " + err.message;
+        alert("Não foi possível gerar o PDF: " + err.message);
+      } finally {
+        btnEl.disabled = false;
+        btnEl.innerText = "Baixar PDF de Gabaritos por Aluno (Pronto para Impressão)";
+      }
     };
 
     function prepararLeitorCamera() {
@@ -827,7 +969,8 @@
         y += 7;
       });
 
-      doc.save(`planilha-${turma}-${prova.nome}.pdf`);
+      const nomeLimpo = (prova.nome || 'prova').replace(/[^\w\-]+/g, '_');
+      acionarDownloadPdfBlob(doc, `planilha-${turma}-${nomeLimpo}.pdf`);
     };
   </script>
 </body>
